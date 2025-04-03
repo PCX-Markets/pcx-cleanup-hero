@@ -13,3 +13,5 @@ export const personalAnnualFootprintVariantId = '46856212775162';
 export const personalAnnualFootprintBaseKgValue = 220;
 export const personalAnnualFootprintBaseLbsValue = 485;
 export const personalAnnualFootprintBaseBottlesValue = 4400;
+
+export const specialChars = ['"', '&', '\\', '+', '<', '>', '=', '@', "'"];

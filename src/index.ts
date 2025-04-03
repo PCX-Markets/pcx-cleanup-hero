@@ -12,6 +12,7 @@ import {
   personalAnnualFootprintBaseKgValue,
   personalAnnualFootprintBaseLbsValue,
   personalAnnualFootprintBaseBottlesValue,
+  specialChars,
 } from './constants';
 import { createCartAndAddItems, fetchProductWithVariants, getCartWebUrl } from './graphql';
 
@@ -173,7 +174,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           `[dev-target=is-gift-message]`
         );
         const variantId = form.querySelector<HTMLInputElement>(`[dev-target=variant-id]`);
-        const isFormValid = form.checkValidity();
 
         // Get values
         const variantItemId = variantId?.value ?? '';
@@ -182,6 +182,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isGiftName = isGiftNameInput?.value ?? '';
         const isGiftEmail = isGiftEmailInput?.value ?? '';
         const isGiftMessage = isGiftMessageInput?.value ?? '';
+
+        const isFormValid =
+          form.checkValidity() && !specialChars.find(char => isGiftMessage.includes(char));
 
         if (!isGift || (isGift && isFormValid)) {
           e.preventDefault();
@@ -666,4 +669,82 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.warn('Finsweet input counter buttons not found');
     }
   }
+
+  // -------------------------------------------------------
+  const attachCustomMessageFieldValidation = (
+    form: HTMLFormElement | null,
+    fieldsWrapperClassCombo: string
+  ) => {
+    if (!form) {
+      console.warn('Form not found. Check your selector.');
+      return;
+    }
+
+    const input = form.querySelector<HTMLTextAreaElement>('[data-name="RecipientMessage"]');
+
+    if (!input) {
+      console.warn(
+        'Could not find input field with data-name="RecipientMessage". Check your selector.'
+      );
+      return;
+    }
+
+    const maxLength = 1024;
+
+    input.setAttribute('maxlength', maxLength.toString());
+
+    const errorText = document.createElement('div');
+    errorText.style.color = '#ff3333';
+    errorText.style.fontSize = '12px';
+    errorText.style.marginTop = '4px';
+    errorText.style.display = 'none';
+    input.parentElement?.appendChild(errorText);
+
+    function validateInput() {
+      if (!input) return;
+
+      const value = input.value;
+
+      input.style.borderColor = '';
+      errorText.style.display = 'none';
+
+      const foundSpecialChar = specialChars.find(char => value.includes(char));
+
+      if (foundSpecialChar) {
+        input.style.borderColor = '#ff3333';
+        errorText.textContent = 'Please avoid using special characters.';
+        errorText.style.display = 'block';
+
+        const giftField = document.querySelector(fieldsWrapperClassCombo);
+        if (giftField) {
+          (giftField as HTMLElement).style.maxHeight = '23rem';
+        }
+
+        return false;
+      }
+
+      const giftField = document.querySelector(fieldsWrapperClassCombo);
+      if (giftField) {
+        (giftField as HTMLElement).style.maxHeight = '20rem';
+      }
+
+      return true;
+    }
+
+    // Validate on input
+    input.addEventListener('input', () => validateInput());
+  };
+
+  const personalAnnualFootprintForm = document.getElementById(
+    'wf-form-Purchase-Form-Personal-3'
+  ) as HTMLFormElement | null;
+  const cleanByTonForm = document.getElementById(
+    'purchase-form-50339670589756'
+  ) as HTMLFormElement | null;
+
+  attachCustomMessageFieldValidation(
+    personalAnnualFootprintForm,
+    '.form_main_field_wrap.is-gift-2.visible'
+  );
+  attachCustomMessageFieldValidation(cleanByTonForm, '.form_main_field_wrap.is-gift.visible');
 });
