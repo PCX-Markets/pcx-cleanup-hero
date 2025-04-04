@@ -13,6 +13,10 @@ import {
   personalAnnualFootprintBaseLbsValue,
   personalAnnualFootprintBaseBottlesValue,
   specialChars,
+  ERROR_COLOR,
+  ERROR_FONT_SIZE,
+  ERROR_MARGIN_TOP,
+  MAX_GIFT_MESSAGE_INPUT_LENGTH,
 } from './constants';
 import { createCartAndAddItems, fetchProductWithVariants, getCartWebUrl } from './graphql';
 
@@ -689,14 +693,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const maxLength = 1024;
-
-    input.setAttribute('maxlength', maxLength.toString());
-
     const errorText = document.createElement('div');
-    errorText.style.color = '#ff3333';
-    errorText.style.fontSize = '12px';
-    errorText.style.marginTop = '4px';
+    errorText.style.color = ERROR_COLOR;
+    errorText.style.fontSize = ERROR_FONT_SIZE;
+    errorText.style.marginTop = ERROR_MARGIN_TOP;
     errorText.style.display = 'none';
     input.parentElement?.appendChild(errorText);
 
@@ -704,28 +704,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!input) return;
 
       const value = input.value;
+      const giftField = document.querySelector(fieldsWrapperClassCombo) as HTMLElement | null;
+
+      const showError = (message: string) => {
+        input.style.borderColor = ERROR_COLOR;
+        errorText.textContent = message;
+        errorText.style.display = 'block';
+        if (giftField) giftField.style.maxHeight = '23rem';
+        return false;
+      };
 
       input.style.borderColor = '';
       errorText.style.display = 'none';
+      if (giftField) giftField.style.maxHeight = '20rem';
 
-      const foundSpecialChar = specialChars.find(char => value.includes(char));
-
-      if (foundSpecialChar) {
-        input.style.borderColor = '#ff3333';
-        errorText.textContent = 'Please avoid using special characters.';
-        errorText.style.display = 'block';
-
-        const giftField = document.querySelector(fieldsWrapperClassCombo);
-        if (giftField) {
-          (giftField as HTMLElement).style.maxHeight = '23rem';
-        }
-
-        return false;
+      if (value.length > MAX_GIFT_MESSAGE_INPUT_LENGTH) {
+        return showError(
+          `Message exceeds the maximum length of ${MAX_GIFT_MESSAGE_INPUT_LENGTH} characters.`
+        );
       }
 
-      const giftField = document.querySelector(fieldsWrapperClassCombo);
-      if (giftField) {
-        (giftField as HTMLElement).style.maxHeight = '20rem';
+      if (specialChars.some(char => value.includes(char))) {
+        return showError('Please avoid using special characters.');
       }
 
       return true;
