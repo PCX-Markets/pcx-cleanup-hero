@@ -188,7 +188,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isGiftMessage = isGiftMessageInput?.value ?? '';
 
         const isFormValid =
-          form.checkValidity() && !specialChars.find(char => isGiftMessage.includes(char));
+          form.checkValidity() &&
+          !specialChars.find(char => isGiftMessage.includes(char)) &&
+          isGiftMessage.length <= MAX_GIFT_MESSAGE_INPUT_LENGTH;
 
         if (!isGift || (isGift && isFormValid)) {
           e.preventDefault();
