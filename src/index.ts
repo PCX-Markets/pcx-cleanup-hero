@@ -12,13 +12,12 @@ import {
   personalAnnualFootprintBaseKgValue,
   personalAnnualFootprintBaseLbsValue,
   personalAnnualFootprintBaseBottlesValue,
-  specialChars,
   ERROR_COLOR,
   ERROR_FONT_SIZE,
   ERROR_MARGIN_TOP,
-  MAX_GIFT_MESSAGE_INPUT_LENGTH,
 } from './constants';
 import { createCartAndAddItems, fetchProductWithVariants, getCartWebUrl } from './graphql';
+import { getGiftMessageValidationError, isGiftMessageValid } from './validation';
 
 document.addEventListener('DOMContentLoaded', async () => {
   let cleanByTonBasePrice = 0;
@@ -187,10 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isGiftEmail = isGiftEmailInput?.value ?? '';
         const isGiftMessage = isGiftMessageInput?.value ?? '';
 
-        const isFormValid =
-          form.checkValidity() &&
-          !specialChars.find(char => isGiftMessage.includes(char)) &&
-          isGiftMessage.length <= MAX_GIFT_MESSAGE_INPUT_LENGTH;
+        const isFormValid = form.checkValidity() && !isGiftMessageValid(isGiftMessage);
 
         if (!isGift || (isGift && isFormValid)) {
           e.preventDefault();
@@ -720,20 +716,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       errorText.style.display = 'none';
       if (giftField) giftField.style.maxHeight = '20rem';
 
-      if (value.length > MAX_GIFT_MESSAGE_INPUT_LENGTH) {
-        return showError(
-          `Message exceeds the maximum length of ${MAX_GIFT_MESSAGE_INPUT_LENGTH} characters.`
-        );
-      }
-
-      if (specialChars.some(char => value.includes(char))) {
-        return showError('Please avoid using special characters.');
+      const giftMessageError = getGiftMessageValidationError(value);
+      if (giftMessageError) {
+        return showError(giftMessageError);
       }
 
       return true;
     }
 
-    // Validate on input
     input.addEventListener('input', () => validateInput());
   };
 
