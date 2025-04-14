@@ -13,11 +13,14 @@ import {
   personalAnnualFootprintBaseLbsValue,
   personalAnnualFootprintBaseBottlesValue,
   ERROR_COLOR,
-  ERROR_FONT_SIZE,
-  ERROR_MARGIN_TOP,
 } from './constants';
 import { createCartAndAddItems, fetchProductWithVariants, getCartWebUrl } from './graphql';
-import { getGiftMessageValidationError, isGiftMessageValid } from './validation';
+import {
+  getGiftNameValidationError,
+  isEmailValid,
+  isGiftMessageValid,
+  isGiftNameValid as isNameValid,
+} from './validation';
 
 document.addEventListener('DOMContentLoaded', async () => {
   let cleanByTonBasePrice = 0;
@@ -178,7 +181,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
         const variantId = form.querySelector<HTMLInputElement>(`[dev-target=variant-id]`);
 
-        // Get values
         const variantItemId = variantId?.value ?? '';
         const qty = qtyInput?.value ?? '0';
         const isGift = isGiftInput?.checked ?? false;
@@ -186,7 +188,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isGiftEmail = isGiftEmailInput?.value ?? '';
         const isGiftMessage = isGiftMessageInput?.value ?? '';
 
-        const isFormValid = form.checkValidity() && !isGiftMessageValid(isGiftMessage);
+        const isFormValid =
+          form.checkValidity() &&
+          isGiftMessageValid(isGiftMessage) &&
+          isEmailValid(isGiftEmail) &&
+          isNameValid(isGiftName);
 
         if (!isGift || (isGift && isFormValid)) {
           e.preventDefault();
@@ -673,7 +679,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // -------------------------------------------------------
-  const attachCustomMessageFieldValidation = (
+  const attachCustomFormValidation = (
     form: HTMLFormElement | null,
     fieldsWrapperClassCombo: string
   ) => {
@@ -682,49 +688,105 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const input = form.querySelector<HTMLTextAreaElement>('[data-name="RecipientMessage"]');
+    const nameInput = form.querySelector<HTMLInputElement>('[data-name="RecipientName"]');
+    const emailInput = form.querySelector<HTMLInputElement>('[data-name="RecipientEmail"]');
+    const messageInput = form.querySelector<HTMLTextAreaElement>('[data-name="RecipientMessage"]');
+    const fieldsContainer = document.querySelector(fieldsWrapperClassCombo) as HTMLElement | null;
 
-    if (!input) {
+    if (!nameInput || !emailInput || !messageInput || !fieldsContainer) {
       console.warn(
-        'Could not find input field with data-name="RecipientMessage". Check your selector.'
+        'Could not find one or more input fields (RecipientName, RecipientEmail, RecipientMessage). Check your selectors and ensure they are present in the form.'
       );
       return;
     }
 
-    const errorText = document.createElement('div');
-    errorText.style.color = ERROR_COLOR;
-    errorText.style.fontSize = ERROR_FONT_SIZE;
-    errorText.style.marginTop = ERROR_MARGIN_TOP;
-    errorText.style.display = 'none';
-    input.parentElement?.appendChild(errorText);
+    const createErrorText = () => {
+      const errorText = document.createElement('div');
+      errorText.style.color = ERROR_COLOR;
+      errorText.style.fontSize = '12px';
+      errorText.style.marginTop = '4px';
+      return errorText;
+    };
 
-    function validateInput() {
-      if (!input) return;
+    const nameInputErrorText = createErrorText();
+    const emailInputErrorText = createErrorText();
+    const messageInputErrorText = createErrorText();
 
-      const value = input.value;
-      const giftField = document.querySelector(fieldsWrapperClassCombo) as HTMLElement | null;
+    nameInput.parentElement?.appendChild(nameInputErrorText);
+    emailInput.parentElement?.appendChild(emailInputErrorText);
+    messageInput.parentElement?.appendChild(messageInputErrorText);
 
-      const showError = (message: string) => {
-        input.style.borderColor = ERROR_COLOR;
-        errorText.textContent = message;
-        errorText.style.display = 'block';
-        if (giftField) giftField.style.maxHeight = '23rem';
-        return false;
-      };
+    const showFieldError = ({
+      message,
+      input,
+      errorTextElement,
+      maxHeightRem,
+    }: {
+      message: string;
+      input: HTMLElement;
+      errorTextElement: HTMLElement;
+      maxHeightRem: number;
+    }) => {
+      input.style.borderColor = ERROR_COLOR;
+      errorTextElement.textContent = message;
+      errorTextElement.style.display = 'block';
+      if (fieldsContainer) fieldsContainer.style.maxHeight = maxHeightRem + 'rem';
+    };
 
-      input.style.borderColor = '';
-      errorText.style.display = 'none';
-      if (giftField) giftField.style.maxHeight = '20rem';
+    const validateForm = () => {
+      const nameValue = nameInput.value;
+      const emailValue = emailInput.value;
+      const messageValue = messageInput.value;
 
-      const giftMessageError = getGiftMessageValidationError(value);
-      if (giftMessageError) {
-        return showError(giftMessageError);
+      let fieldsHeightRem = 20;
+
+      nameInput.style.borderColor = '';
+      nameInputErrorText.style.display = 'none';
+      emailInput.style.borderColor = '';
+      emailInputErrorText.style.display = 'none';
+      messageInput.style.borderColor = '';
+      messageInputErrorText.style.display = 'none';
+
+      fieldsContainer.style.maxHeight = `${fieldsHeightRem}rem`;
+
+      const giftNameError = getGiftNameValidationError(nameValue);
+      console.log(`validaing name ${nameValue}, email: ${emailValue}, message: ${messageValue}`);
+      if (giftNameError) {
+        fieldsHeightRem += 3;
+        showFieldError({
+          errorTextElement: nameInputErrorText,
+          input: nameInput,
+          message: giftNameError,
+          maxHeightRem: fieldsHeightRem,
+        });
       }
 
-      return true;
-    }
+      const giftEmailError = getGiftNameValidationError(emailValue);
+      if (giftEmailError) {
+        fieldsHeightRem += 3;
+        showFieldError({
+          errorTextElement: emailInputErrorText,
+          input: emailInput,
+          message: giftEmailError,
+          maxHeightRem: fieldsHeightRem,
+        });
+      }
 
-    input.addEventListener('input', () => validateInput());
+      const giftMessageError = getGiftNameValidationError(messageValue);
+      if (giftMessageError) {
+        fieldsHeightRem += 3;
+        showFieldError({
+          errorTextElement: messageInputErrorText,
+          input: messageInput,
+          message: giftMessageError,
+          maxHeightRem: fieldsHeightRem,
+        });
+      }
+    };
+
+    messageInput.addEventListener('input', () => validateForm());
+    nameInput.addEventListener('input', () => validateForm());
+    emailInput.addEventListener('input', () => validateForm());
   };
 
   const personalAnnualFootprintForm = document.getElementById(
@@ -734,9 +796,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     'purchase-form-50339670589756'
   ) as HTMLFormElement | null;
 
-  attachCustomMessageFieldValidation(
+  attachCustomFormValidation(
     personalAnnualFootprintForm,
     '.form_main_field_wrap.is-gift-2.visible'
   );
-  attachCustomMessageFieldValidation(cleanByTonForm, '.form_main_field_wrap.is-gift.visible');
+  attachCustomFormValidation(cleanByTonForm, '.form_main_field_wrap.is-gift.visible');
 });
