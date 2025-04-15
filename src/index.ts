@@ -16,6 +16,8 @@ import {
 } from './constants';
 import { createCartAndAddItems, fetchProductWithVariants, getCartWebUrl } from './graphql';
 import {
+  getEmailValidationError,
+  getGiftMessageValidationError,
   getGiftNameValidationError,
   isEmailValid,
   isGiftMessageValid,
@@ -690,10 +692,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const nameInput = form.querySelector<HTMLInputElement>('[data-name="RecipientName"]');
     const emailInput = form.querySelector<HTMLInputElement>('[data-name="RecipientEmail"]');
-    const messageInput = form.querySelector<HTMLTextAreaElement>('[data-name="RecipientMessage"]');
-    const fieldsContainer = document.querySelector(fieldsWrapperClassCombo) as HTMLElement | null;
+    const giftMessageInput = form.querySelector<HTMLTextAreaElement>(
+      '[data-name="RecipientMessage"]'
+    );
 
-    if (!nameInput || !emailInput || !messageInput || !fieldsContainer) {
+    if (!nameInput || !emailInput || !giftMessageInput) {
       console.warn(
         'Could not find one or more input fields (RecipientName, RecipientEmail, RecipientMessage). Check your selectors and ensure they are present in the form.'
       );
@@ -714,29 +717,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     nameInput.parentElement?.appendChild(nameInputErrorText);
     emailInput.parentElement?.appendChild(emailInputErrorText);
-    messageInput.parentElement?.appendChild(messageInputErrorText);
+    giftMessageInput.parentElement?.appendChild(messageInputErrorText);
 
     const showFieldError = ({
       message,
       input,
       errorTextElement,
       maxHeightRem,
+      inputsContainer,
     }: {
       message: string;
       input: HTMLElement;
       errorTextElement: HTMLElement;
       maxHeightRem: number;
+      inputsContainer: HTMLElement;
     }) => {
       input.style.borderColor = ERROR_COLOR;
       errorTextElement.textContent = message;
       errorTextElement.style.display = 'block';
-      if (fieldsContainer) fieldsContainer.style.maxHeight = maxHeightRem + 'rem';
+      if (inputsContainer) inputsContainer.style.maxHeight = maxHeightRem + 'rem';
     };
 
     const validateForm = () => {
+      const inputsContainer = document.querySelector(fieldsWrapperClassCombo) as HTMLElement | null;
+
+      if (!inputsContainer) {
+        console.warn('Fields container not found. Check your selector.');
+        return;
+      }
+
       const nameValue = nameInput.value;
       const emailValue = emailInput.value;
-      const messageValue = messageInput.value;
+      const messageValue = giftMessageInput.value;
 
       let fieldsHeightRem = 20;
 
@@ -744,13 +756,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       nameInputErrorText.style.display = 'none';
       emailInput.style.borderColor = '';
       emailInputErrorText.style.display = 'none';
-      messageInput.style.borderColor = '';
+      giftMessageInput.style.borderColor = '';
       messageInputErrorText.style.display = 'none';
 
-      fieldsContainer.style.maxHeight = `${fieldsHeightRem}rem`;
+      inputsContainer.style.maxHeight = `${fieldsHeightRem}rem`;
 
       const giftNameError = getGiftNameValidationError(nameValue);
-      console.log(`validaing name ${nameValue}, email: ${emailValue}, message: ${messageValue}`);
       if (giftNameError) {
         fieldsHeightRem += 3;
         showFieldError({
@@ -758,10 +769,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           input: nameInput,
           message: giftNameError,
           maxHeightRem: fieldsHeightRem,
+          inputsContainer,
         });
       }
 
-      const giftEmailError = getGiftNameValidationError(emailValue);
+      const giftEmailError = getEmailValidationError(emailValue);
       if (giftEmailError) {
         fieldsHeightRem += 3;
         showFieldError({
@@ -769,22 +781,24 @@ document.addEventListener('DOMContentLoaded', async () => {
           input: emailInput,
           message: giftEmailError,
           maxHeightRem: fieldsHeightRem,
+          inputsContainer,
         });
       }
 
-      const giftMessageError = getGiftNameValidationError(messageValue);
+      const giftMessageError = getGiftMessageValidationError(messageValue);
       if (giftMessageError) {
         fieldsHeightRem += 3;
         showFieldError({
           errorTextElement: messageInputErrorText,
-          input: messageInput,
+          input: giftMessageInput,
           message: giftMessageError,
           maxHeightRem: fieldsHeightRem,
+          inputsContainer,
         });
       }
     };
 
-    messageInput.addEventListener('input', () => validateForm());
+    giftMessageInput.addEventListener('input', () => validateForm());
     nameInput.addEventListener('input', () => validateForm());
     emailInput.addEventListener('input', () => validateForm());
   };
