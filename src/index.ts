@@ -190,6 +190,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isGiftEmail = isGiftEmailInput?.value ?? '';
         const isGiftMessage = isGiftMessageInput?.value ?? '';
 
+        // Trigger input events for validation
+        [isGiftNameInput, isGiftEmailInput, isGiftMessageInput].forEach(input => {
+          if (input) {
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+
         const isFormValid =
           form.checkValidity() &&
           isGiftMessageValid(isGiftMessage) &&
@@ -719,6 +726,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     emailInput.parentElement?.appendChild(emailInputErrorText);
     giftMessageInput.parentElement?.appendChild(messageInputErrorText);
 
+    const touchedFields = new Set<string>();
+
     const showFieldError = ({
       message,
       input,
@@ -732,10 +741,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       maxHeightRem: number;
       inputsContainer: HTMLElement;
     }) => {
-      input.style.borderColor = ERROR_COLOR;
-      errorTextElement.textContent = message;
-      errorTextElement.style.display = 'block';
-      if (inputsContainer) inputsContainer.style.maxHeight = maxHeightRem + 'rem';
+      if (touchedFields.has(input.getAttribute('name') || '')) {
+        input.style.borderColor = ERROR_COLOR;
+        errorTextElement.textContent = message;
+        errorTextElement.style.display = 'block';
+        if (inputsContainer) inputsContainer.style.maxHeight = maxHeightRem + 'rem';
+      }
     };
 
     const validateForm = () => {
@@ -762,7 +773,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       inputsContainer.style.maxHeight = `${fieldsHeightRem}rem`;
 
       const giftNameError = getGiftNameValidationError(nameValue);
-      if (giftNameError) {
+      if (giftNameError && touchedFields.has(nameInput.getAttribute('name') || '')) {
         fieldsHeightRem += 3;
         showFieldError({
           errorTextElement: nameInputErrorText,
@@ -774,7 +785,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const giftEmailError = getEmailValidationError(emailValue);
-      if (giftEmailError) {
+      if (giftEmailError && touchedFields.has(emailInput.getAttribute('name') || '')) {
         fieldsHeightRem += 3;
         showFieldError({
           errorTextElement: emailInputErrorText,
@@ -786,7 +797,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const giftMessageError = getGiftMessageValidationError(messageValue);
-      if (giftMessageError) {
+      if (giftMessageError && touchedFields.has(giftMessageInput.getAttribute('name') || '')) {
         fieldsHeightRem += 3;
         showFieldError({
           errorTextElement: messageInputErrorText,
@@ -798,9 +809,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     };
 
-    giftMessageInput.addEventListener('input', () => validateForm());
-    nameInput.addEventListener('input', () => validateForm());
-    emailInput.addEventListener('input', () => validateForm());
+    giftMessageInput.addEventListener('input', () => {
+      touchedFields.add(giftMessageInput.getAttribute('name') || '');
+      validateForm();
+    });
+    nameInput.addEventListener('input', () => {
+      touchedFields.add(nameInput.getAttribute('name') || '');
+      validateForm();
+    });
+    emailInput.addEventListener('input', () => {
+      touchedFields.add(emailInput.getAttribute('name') || '');
+      validateForm();
+    });
   };
 
   const personalAnnualFootprintForm = document.getElementById(

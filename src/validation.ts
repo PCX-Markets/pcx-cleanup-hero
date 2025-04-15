@@ -40,6 +40,10 @@ export const isGiftNameValid = (name: string): boolean => {
 };
 
 export const getGiftNameValidationError = (nameValue: string): string | null => {
+  if (nameValue.length < 1) {
+    return 'Name is required.';
+  }
+
   if (nameValue.length > MAX_GIFT_NAME_INPUT_LENGTH) {
     return `Name exceeds the maximum length of ${MAX_GIFT_NAME_INPUT_LENGTH} characters.`;
   }
@@ -56,6 +60,10 @@ export const isEmailValid = (email: string): boolean => {
 };
 
 export const getEmailValidationError = (emailValue: string): string | null => {
+  if (emailValue.length < 1) {
+    return 'Email is required.';
+  }
+
   if (emailValue.length > MAX_EMAIL_INPUT_LENGTH) {
     return `Email address exceeds the maximum length of ${MAX_EMAIL_INPUT_LENGTH} characters.`;
   }
