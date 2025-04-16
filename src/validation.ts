@@ -1,5 +1,4 @@
 import {
-  specialChars,
   MAX_GIFT_MESSAGE_INPUT_LENGTH,
   MAX_GIFT_NAME_INPUT_LENGTH,
   MAX_EMAIL_INPUT_LENGTH,
@@ -10,69 +9,78 @@ const containsEmoji = (value: string): boolean => {
   return regex.test(value);
 };
 
-const validateEmail = (email: string) => {
+const validateEmail = (value: string) => {
   const regex = /^((?!\.)[\w\-_.]*[^.])(@\w+)(\.\w+(\.\w+)?[^.\W])$/;
-  return regex.test(email);
+  return regex.test(value);
 };
 
-export const isGiftMessageValid = (message: string): boolean => {
-  return getGiftMessageValidationError(message) === null;
+const containsSpecialChars = (value: string): boolean => {
+  const specialChars = ['"', '&', '\\', '+', '<', '>', '=', '@'];
+  return specialChars.some(char => value.includes(char));
 };
 
-export const getGiftMessageValidationError = (message: string): string | null => {
-  if (message.length > MAX_GIFT_MESSAGE_INPUT_LENGTH) {
+export const isGiftMessageValid = (value: string): boolean => {
+  return getGiftMessageValidationError(value) === null;
+};
+
+export const getGiftMessageValidationError = (value: string): string | null => {
+  if (value.length > MAX_GIFT_MESSAGE_INPUT_LENGTH) {
     return `Message exceeds the maximum length of ${MAX_GIFT_MESSAGE_INPUT_LENGTH} characters.`;
   }
 
-  if (specialChars.some(char => message.includes(char))) {
+  if (containsSpecialChars(value)) {
     return 'Please avoid using special characters.';
   }
 
-  if (containsEmoji(message)) {
+  if (containsEmoji(value)) {
     return 'Please avoid using emojis in the message.';
   }
 
   return null;
 };
 
-export const isGiftNameValid = (name: string): boolean => {
-  return getGiftNameValidationError(name) === null;
+export const isGiftNameValid = (value: string): boolean => {
+  return getGiftNameValidationError(value) === null;
 };
 
-export const getGiftNameValidationError = (nameValue: string): string | null => {
-  if (nameValue.length < 1) {
+export const getGiftNameValidationError = (value: string): string | null => {
+  if (value.length < 1) {
     return 'Name is required.';
   }
 
-  if (nameValue.length > MAX_GIFT_NAME_INPUT_LENGTH) {
+  if (value.length > MAX_GIFT_NAME_INPUT_LENGTH) {
     return `Name exceeds the maximum length of ${MAX_GIFT_NAME_INPUT_LENGTH} characters.`;
   }
 
-  if (containsEmoji(nameValue)) {
+  if (containsSpecialChars(value)) {
+    return 'Please avoid using special characters.';
+  }
+
+  if (containsEmoji(value)) {
     return 'Name field cannot contain emojis.';
   }
 
   return null;
 };
 
-export const isEmailValid = (email: string): boolean => {
-  return getEmailValidationError(email) === null;
+export const isEmailValid = (value: string): boolean => {
+  return getEmailValidationError(value) === null;
 };
 
-export const getEmailValidationError = (emailValue: string): string | null => {
-  if (emailValue.length < 1) {
+export const getEmailValidationError = (value: string): string | null => {
+  if (value.length < 1) {
     return 'Email is required.';
   }
 
-  if (emailValue.length > MAX_EMAIL_INPUT_LENGTH) {
+  if (value.length > MAX_EMAIL_INPUT_LENGTH) {
     return `Email address exceeds the maximum length of ${MAX_EMAIL_INPUT_LENGTH} characters.`;
   }
 
-  if (containsEmoji(emailValue)) {
+  if (containsEmoji(value)) {
     return 'Email field cannot contain emojis.';
   }
 
-  if (!validateEmail(emailValue)) {
+  if (!validateEmail(value)) {
     return 'Please enter a valid email address.';
   }
 

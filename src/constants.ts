@@ -14,8 +14,6 @@ export const personalAnnualFootprintBaseKgValue = 220;
 export const personalAnnualFootprintBaseLbsValue = 485;
 export const personalAnnualFootprintBaseBottlesValue = 4400;
 
-export const specialChars = ['"', '&', '\\', '+', '<', '>', '=', '@', "'"];
-
 export const ERROR_COLOR = '#ff3333';
 
 export const MAX_GIFT_MESSAGE_INPUT_LENGTH = 1024;
