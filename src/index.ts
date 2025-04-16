@@ -1,101 +1,87 @@
+import { createStorefrontApiClient, StorefrontApiClient } from '@shopify/storefront-api-client';
+import { CartItem, ProductResponse } from './types';
 import {
-  createStorefrontApiClient,
-  StorefrontApiClient,
-} from "@shopify/storefront-api-client";
+  publicAccessToken,
+  storeDomain,
+  productId,
+  cleanByTonVariantId,
+  cleanByTonBaseKgValue,
+  cleanByTonBaseLbsValue,
+  cleanByTonBaseBottlesValue,
+  personalAnnualFootprintVariantId,
+  personalAnnualFootprintBaseKgValue,
+  personalAnnualFootprintBaseLbsValue,
+  personalAnnualFootprintBaseBottlesValue,
+  ERROR_COLOR,
+} from './constants';
+import { createCartAndAddItems, fetchProductWithVariants, getCartWebUrl } from './graphql';
 import {
-  CartItem,
-  CreateCartResponse,
-  GetCartResponse,
-  ProductResponse,
-} from "./types";
+  getEmailValidationError,
+  getGiftMessageValidationError,
+  getGiftNameValidationError,
+  isEmailValid,
+  isGiftMessageValid,
+  isGiftNameValid as isNameValid,
+} from './validation';
 
-document.addEventListener("DOMContentLoaded", async () => {
-  const publicAccessToken = "92763ee4ca8842db0d48c64ad1ff8f9a";
-  const storeDomain = "http://pcxmarkets.myshopify.com";
-  const productId = 8657611915514;
-  // Clean Up by the Ton
+document.addEventListener('DOMContentLoaded', async () => {
   let cleanByTonBasePrice = 0;
-  const cleanByTonVariantId = "46856212807930";
-  const cleanByTonBaseKgValue = 1000;
-  const cleanByTonBaseLbsValue = 2200;
-  const cleanByTonBaseBottlesValue = 66000;
-  // Personal Annual Footprint
   let personalAnnualFootprintBasePrice = 0;
-  const personalAnnualFootprintVariantId = "46856212775162";
-  const personalAnnualFootprintBaseKgValue = 220;
-  const personalAnnualFootprintBaseLbsValue = 485;
-  const personalAnnualFootprintBaseBottlesValue = 4400;
 
   const namePersonalFootprintWrapper = document.querySelector(
     `[dev-target=name-wrap-personal-footprint]`
   )!;
-  const nameCleanByTonWrapper = document.querySelector(
-    `[dev-target=name-wrap-clean-by-ton]`
-  )!;
+  const nameCleanByTonWrapper = document.querySelector(`[dev-target=name-wrap-clean-by-ton]`)!;
   const quantityInputCleanByTon = document.querySelector<HTMLInputElement>(
-    "#Quantity-50339670589756"
+    '#Quantity-50339670589756'
   )!;
-  const priceDisplayCleanByTon = document.querySelector(".purchase_price")!;
-  const kgImpactDisplayCleanByTon = document.querySelector(
-    ".purchase_number-impact.is-kg"
-  )!;
+  const priceDisplayCleanByTon = document.querySelector('.purchase_price')!;
+  const kgImpactDisplayCleanByTon = document.querySelector('.purchase_number-impact.is-kg')!;
   const bottlesImpactDisplayCleanByTon = document.querySelector(
-    ".purchase_number-impact.is-bottles"
+    '.purchase_number-impact.is-bottles'
   )!;
-  const quantityInputPersonalAnnualFootprint =
-    document.querySelector<HTMLInputElement>("#Quantity-50339670589758")!;
-  const priceDisplayPersonalAnnualFootprint =
-    document.querySelector(".purchase_price-2")!;
+  const quantityInputPersonalAnnualFootprint = document.querySelector<HTMLInputElement>(
+    '#Quantity-50339670589758'
+  )!;
+  const priceDisplayPersonalAnnualFootprint = document.querySelector('.purchase_price-2')!;
   const kgImpactDisplayPersonalAnnualFootprint = document.querySelector(
-    ".purchase_number-impact.is-kg-2"
+    '.purchase_number-impact.is-kg-2'
   )!;
   const bottlesImpactDisplayPersonalAnnualFootprint = document.querySelector(
-    ".purchase_number-impact.is-bottles-2"
+    '.purchase_number-impact.is-bottles-2'
   )!;
 
-  const cartBody = document.querySelector("[dev-target=cart-body]")!;
+  const cartBody = document.querySelector('[dev-target=cart-body]')!;
   const cartCountElement = document.querySelector(`[dev-target=cart-count]`)!;
-  const cartCheckboxWrap = document.querySelector<HTMLDivElement>(
-    `[dev-target=checkbox-wrap]`
-  )!;
+  const cartCheckboxWrap = document.querySelector<HTMLDivElement>(`[dev-target=checkbox-wrap]`)!;
   const cartCheckboxInput = cartCheckboxWrap?.querySelector(`input`)!;
   const cartBtnNumber = document.querySelector(`[dev-target=cart-btn-number]`)!;
   const cartEmptyStateElement = document.querySelector<HTMLDivElement>(
-    "[dev-target=cart-empty-state]"
+    '[dev-target=cart-empty-state]'
   )!;
-  const cartItemPlaceholder = document.querySelector("[dev-target=cart-item]")!;
-  const checkoutBtn = document.querySelector<HTMLDivElement>(
-    "[dev-target=checkout]"
-  )!;
-  const subTotal = document.querySelector("[dev-target=sub-total]")!;
+  const cartItemPlaceholder = document.querySelector('[dev-target=cart-item]')!;
+  const checkoutBtn = document.querySelector<HTMLDivElement>('[dev-target=checkout]')!;
+  const subTotal = document.querySelector('[dev-target=sub-total]')!;
   let cartCheckbox = true;
 
-  const buyButtons = document.querySelectorAll<HTMLDivElement>(
-    ".js-shopify-buy-now"
-  )!;
+  const buyButtons = document.querySelectorAll<HTMLDivElement>('.js-shopify-buy-now')!;
 
   const checkboxesConfig = [
     {
-      checkbox: "#IsGift-50339670589756",
-      field: ".form_main_field_wrap.is-gift",
-      requiredInputs: [
-        "#RecipientName-50339670589756",
-        "#RecipientEmail-50339670589756",
-      ],
+      checkbox: '#IsGift-50339670589756',
+      field: '.form_main_field_wrap.is-gift',
+      requiredInputs: ['#RecipientName-50339670589756', '#RecipientEmail-50339670589756'],
     },
     {
-      checkbox: "#IsGift-50339670556988",
-      field: ".form_main_field_wrap.is-gift-2",
-      requiredInputs: [
-        "#RecipientName-50339670556988",
-        "#RecipientEmail-50339670556988",
-      ],
+      checkbox: '#IsGift-50339670556988',
+      field: '.form_main_field_wrap.is-gift-2',
+      requiredInputs: ['#RecipientName-50339670556988', '#RecipientEmail-50339670556988'],
     },
   ];
 
   const storefrontClient = createStorefrontApiClient({
     storeDomain,
-    apiVersion: "2024-04",
+    apiVersion: '2024-04',
     publicAccessToken,
   });
   const fetchedProduct = await fetchProductWithVariants({
@@ -115,32 +101,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   initAddToCartButtons(buyButtons);
 
-  if (
-    performance.navigation.type === performance.navigation.TYPE_BACK_FORWARD
-  ) {
+  if (performance.navigation.type === performance.navigation.TYPE_BACK_FORWARD) {
     window.location.reload();
   }
-  // console.log({ storefrontClient });
-  // console.log({ fetchedProduct });
 
-  function setPricesAndName({
-    fetchedProduct,
-  }: {
-    fetchedProduct: ProductResponse;
-  }) {
-    fetchedProduct.product.variants.edges.forEach((variant) => {
-      const variantId = variant.node.id.split("/").pop();
-      if (!variantId) return console.error("variantId not found");
+  function setPricesAndName({ fetchedProduct }: { fetchedProduct: ProductResponse }) {
+    fetchedProduct.product.variants.edges.forEach(variant => {
+      const variantId = variant.node.id.split('/').pop();
+      if (!variantId) return console.error('variantId not found');
       if (personalAnnualFootprintVariantId === variantId) {
-        namePersonalFootprintWrapper.querySelector(
-          `[dev-target=item-name]`
-        )!.textContent = variant.node.title;
+        namePersonalFootprintWrapper.querySelector(`[dev-target=item-name]`)!.textContent =
+          variant.node.title;
         personalAnnualFootprintBasePrice = Number(variant.node.price.amount);
       }
       if (cleanByTonVariantId === variantId) {
-        nameCleanByTonWrapper.querySelector(
-          `[dev-target=item-name]`
-        )!.textContent = variant.node.title;
+        nameCleanByTonWrapper.querySelector(`[dev-target=item-name]`)!.textContent =
+          variant.node.title;
         cleanByTonBasePrice = Number(variant.node.price.amount);
       }
     });
@@ -155,78 +131,77 @@ document.addEventListener("DOMContentLoaded", async () => {
     lineItemsToAdd: ReturnType<typeof createLineItemsManager>;
     storefrontClient: StorefrontApiClient;
   }) {
-    checkoutButton.addEventListener("click", async () => {
+    checkoutButton.addEventListener('click', async () => {
       try {
-        checkoutButton.classList.add("disabled");
+        checkoutButton.classList.add('disabled');
+
         const cart = await createCartAndAddItems({
           storefrontClient,
           attributes: [
-            { key: "GiftPromo", value: "true" },
+            { key: 'GiftPromo', value: 'true' },
             {
-              key: "RegistryOptIn",
-              value: lineItemsToAdd.checkOverTon()
-                ? cartCheckbox
-                  ? "true"
-                  : "false"
-                : "null",
+              key: 'RegistryOptIn',
+              value: lineItemsToAdd.checkOverTon() ? (cartCheckbox ? 'true' : 'false') : 'null',
             },
           ],
           lineItems: lineItemsToAdd.getPureItems(),
         });
-        // console.log({ cart });
+
         const { checkoutUrl } = await getCartWebUrl({
           storefrontClient,
           cartId: cart.id,
         });
-        // console.log({ checkoutUrl });
-        checkoutButton.classList.remove("disabled");
+
+        checkoutButton.classList.remove('disabled');
         window.location.href = checkoutUrl;
       } catch (error) {
-        checkoutButton.classList.remove("disabled");
-        console.error("error", error);
+        checkoutButton.classList.remove('disabled');
+        console.error('error', error);
       }
     });
   }
 
   function cartInit() {
-    cartCheckboxWrap.style.display = "none";
-    cartCheckboxInput.addEventListener("change", () => {
+    cartCheckboxWrap.style.display = 'none';
+    cartCheckboxInput.addEventListener('change', () => {
       cartCheckbox = cartCheckboxInput.checked;
     });
-    cartBody.innerHTML = "";
+    cartBody.innerHTML = '';
     cartBody.appendChild(cartEmptyStateElement);
   }
 
   function initAddToCartButtons(buttons: NodeListOf<HTMLDivElement>) {
-    buttons.forEach((button) => {
-      button.addEventListener("click", (e) => {
-        const form = button.closest("form")!;
-        const qtyInput = form.querySelector<HTMLInputElement>(
-          `[dev-target=qty-input]`
-        );
-        const isGiftInput =
-          form.querySelector<HTMLInputElement>(`[dev-target=is-gift]`);
-        const isGiftNameInput = form.querySelector<HTMLInputElement>(
-          `[dev-target=is-gift-name]`
-        );
-        const isGiftEmailInput = form.querySelector<HTMLInputElement>(
-          `[dev-target=is-gift-email]`
-        );
+    buttons.forEach(button => {
+      button.addEventListener('click', e => {
+        const form = button.closest('form')!;
+        const qtyInput = form.querySelector<HTMLInputElement>(`[dev-target=qty-input]`);
+        const isGiftInput = form.querySelector<HTMLInputElement>(`[dev-target=is-gift]`);
+        const isGiftNameInput = form.querySelector<HTMLInputElement>(`[dev-target=is-gift-name]`);
+        const isGiftEmailInput = form.querySelector<HTMLInputElement>(`[dev-target=is-gift-email]`);
         const isGiftMessageInput = form.querySelector<HTMLInputElement>(
           `[dev-target=is-gift-message]`
         );
-        const variantId = form.querySelector<HTMLInputElement>(
-          `[dev-target=variant-id]`
-        );
-        const isFormValid = form.checkValidity();
+        const variantId = form.querySelector<HTMLInputElement>(`[dev-target=variant-id]`);
 
-        // Get values
-        const variantItemId = variantId?.value ?? "";
-        const qty = qtyInput?.value ?? "0";
+        const variantItemId = variantId?.value ?? '';
+        const qty = qtyInput?.value ?? '0';
         const isGift = isGiftInput?.checked ?? false;
-        const isGiftName = isGiftNameInput?.value ?? "";
-        const isGiftEmail = isGiftEmailInput?.value ?? "";
-        const isGiftMessage = isGiftMessageInput?.value ?? "";
+        const isGiftName = isGiftNameInput?.value ?? '';
+        const isGiftEmail = isGiftEmailInput?.value ?? '';
+        const isGiftMessage = isGiftMessageInput?.value ?? '';
+
+        // Trigger input events for validation
+        [isGiftNameInput, isGiftEmailInput, isGiftMessageInput].forEach(input => {
+          if (input) {
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+
+        const isFormValid =
+          form.checkValidity() &&
+          isGiftMessageValid(isGiftMessage) &&
+          isEmailValid(isGiftEmail) &&
+          isNameValid(isGiftName);
 
         if (!isGift || (isGift && isFormValid)) {
           e.preventDefault();
@@ -272,15 +247,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const currentVariant = product.product.variants.edges.find(
       ({ node: { id } }) => id === merchandiseId
     );
-    if (!currentVariant) return console.error("currentVariant not found");
-    // console.log({ currentVariant });
+    if (!currentVariant) return console.error('currentVariant not found');
 
     if (!isGift) {
-      // console.log("Not a gift");
       const customProperties: Record<string, string> = {
-        _isGift: "false",
+        _isGift: 'false',
       };
-      const attributes = Object.keys(customProperties).map((key) => ({
+      const attributes = Object.keys(customProperties).map(key => ({
         key,
         value: customProperties[key],
       }));
@@ -288,19 +261,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         merchandiseId,
         quantity,
         productName: currentVariant.node.title,
-        productImage: currentVariant.node.image.url ?? "",
+        productImage: currentVariant.node.image.url ?? '',
         productPrice: parseFloat(currentVariant.node.price.amount),
         attributes,
       });
     } else {
-      // console.log("Is a gift");
       const customProperties: Record<string, string> = {
-        _isGift: "true",
-        "Gift Recipient Name": isGiftName ?? "",
-        "Gift Recipient Email": isGiftEmail ?? "",
-        "Gift Recipient Message": isGiftMessage ?? "",
+        _isGift: 'true',
+        'Gift Recipient Name': isGiftName ?? '',
+        'Gift Recipient Email': isGiftEmail ?? '',
+        'Gift Recipient Message': isGiftMessage ?? '',
       };
-      const attributes = Object.keys(customProperties).map((key) => ({
+      const attributes = Object.keys(customProperties).map(key => ({
         key,
         value: customProperties[key],
       }));
@@ -309,7 +281,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         merchandiseId,
         quantity,
         productName: currentVariant.node.title,
-        productImage: currentVariant.node.image.url ?? "",
+        productImage: currentVariant.node.image.url ?? '',
         productPrice: parseFloat(currentVariant.node.price.amount),
         attributes,
       });
@@ -318,69 +290,49 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function updateCart() {
-    cartBody.innerHTML = "";
+    cartBody.innerHTML = '';
     const cartLength = lineItemsToAdd.get().length;
     cartCountElement.textContent = `(${cartLength})`;
     cartBtnNumber.textContent = `${cartLength}`;
     if (cartLength === 0) {
       cartBody.appendChild(cartEmptyStateElement);
-      checkoutBtn.classList.add("disabled");
+      checkoutBtn.classList.add('disabled');
     } else {
-      checkoutBtn.classList.remove("disabled");
+      checkoutBtn.classList.remove('disabled');
     }
     lineItemsToAdd.get().forEach((item, index) => {
       const cartItem = cartItemPlaceholder.cloneNode(true) as HTMLDivElement;
-      const image = cartItem.querySelector<HTMLImageElement>(
-        "[dev-target=cart-image]"
-      )!;
-      const name = cartItem.querySelector<HTMLDivElement>(
-        "[dev-target=cart-name]"
-      )!;
-      const total = cartItem.querySelector<HTMLDivElement>(
-        "[dev-target=cart-total]"
-      )!;
-      const price = cartItem.querySelector<HTMLDivElement>(
-        "[dev-target=cart-price]"
-      )!;
-      const gift = cartItem.querySelector<HTMLDivElement>(
-        "[dev-target=cart-gift]"
-      )!;
-      const giftName = cartItem.querySelector<HTMLDivElement>(
-        "[dev-target=cart-gift-name]"
-      )!;
-      const giftMessage = cartItem.querySelector<HTMLDivElement>(
-        "[dev-target=cart-gift-message]"
-      )!;
-      const cartDecrease = cartItem.querySelector("[dev-target=cart-decrease]");
-      const cartInput = cartItem.querySelector<HTMLInputElement>(
-        "[dev-target=cart-input]"
-      )!;
-      const cartIncrease = cartItem.querySelector(
-        "[dev-target=cart-increase]"
-      )!;
-      const cartRemove = cartItem.querySelector("[dev-target=cart-remove]");
+      const image = cartItem.querySelector<HTMLImageElement>('[dev-target=cart-image]')!;
+      const name = cartItem.querySelector<HTMLDivElement>('[dev-target=cart-name]')!;
+      const total = cartItem.querySelector<HTMLDivElement>('[dev-target=cart-total]')!;
+      const price = cartItem.querySelector<HTMLDivElement>('[dev-target=cart-price]')!;
+      const gift = cartItem.querySelector<HTMLDivElement>('[dev-target=cart-gift]')!;
+      const giftName = cartItem.querySelector<HTMLDivElement>('[dev-target=cart-gift-name]')!;
+      const giftMessage = cartItem.querySelector<HTMLDivElement>('[dev-target=cart-gift-message]')!;
+      const cartDecrease = cartItem.querySelector('[dev-target=cart-decrease]');
+      const cartInput = cartItem.querySelector<HTMLInputElement>('[dev-target=cart-input]')!;
+      const cartIncrease = cartItem.querySelector('[dev-target=cart-increase]')!;
+      const cartRemove = cartItem.querySelector('[dev-target=cart-remove]');
 
       if (item.productImage) {
         image.src = item.productImage;
-        image.srcset = "";
+        image.srcset = '';
       }
       name.textContent = item.productName;
       price.textContent = `$${item.productPrice}`;
-      total.textContent = `$${(
-        item.productPrice * item.quantity
-      ).toLocaleString()}`;
+      total.textContent = `$${(item.productPrice * item.quantity).toLocaleString()}`;
       cartInput.value = item.quantity.toString();
-      if (item.attributes[0].value === "true") {
-        gift.innerHTML = "<strong>Gift: </strong> Yes";
+      if (item.attributes[0].value === 'true') {
+        gift.innerHTML = '<strong>Gift: </strong> Yes';
         giftName.innerHTML = `<strong>To: </strong>${item.attributes[1].value}`;
         giftMessage.innerHTML = `<strong>Message: </strong>${item.attributes[3].value}`;
       } else {
-        gift.classList.add("hide");
-        giftName.classList.add("hide");
-        giftMessage.classList.add("hide");
+        gift.classList.add('hide');
+        giftName.classList.add('hide');
+        giftMessage.classList.add('hide');
       }
 
-      cartInput.addEventListener("input", (e) => {
+      cartInput.addEventListener('input', e => {
         total.textContent = `$${(
           parseInt((e.target as HTMLInputElement).value) * item.productPrice
         ).toLocaleString()}`;
@@ -390,19 +342,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         updateSubtotal();
       });
-      cartRemove?.addEventListener("click", () => {
+      cartRemove?.addEventListener('click', () => {
         lineItemsToAdd.removeByIndex(index);
       });
-      cartIncrease.addEventListener("click", () => {
+      cartIncrease.addEventListener('click', () => {
         cartInput.value = (parseInt(cartInput.value, 10) + 1).toString();
-        cartInput.dispatchEvent(new Event("input", { bubbles: true }));
+        cartInput.dispatchEvent(new Event('input', { bubbles: true }));
       });
-      cartDecrease?.addEventListener("click", () => {
+      cartDecrease?.addEventListener('click', () => {
         if (parseInt(cartInput.value) === 1) {
           lineItemsToAdd.removeByIndex(index);
         } else {
           cartInput.value = (parseInt(cartInput.value, 10) - 1).toString();
-          cartInput.dispatchEvent(new Event("input", { bubbles: true }));
+          cartInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
       });
 
@@ -411,9 +363,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function updateSubtotal() {
-    subTotal.textContent = `$${lineItemsToAdd
-      .getTotalPrice()
-      .toLocaleString()}`;
+    subTotal.textContent = `$${lineItemsToAdd.getTotalPrice().toLocaleString()}`;
   }
   function createLineItemsManager() {
     const items: CartItem[] = [];
@@ -421,7 +371,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return {
       push(newItem: CartItem) {
         const existingItemIndex = items.findIndex(
-          (item) =>
+          item =>
             item.merchandiseId === newItem.merchandiseId &&
             ((!item.attributes && !newItem.attributes) ||
               (item.attributes &&
@@ -463,7 +413,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 0);
       },
       getPureItems() {
-        return items.map((item) => {
+        return items.map(item => {
           const { merchandiseId, attributes, quantity } = item;
           return {
             merchandiseId,
@@ -480,26 +430,26 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         for (const item of items) {
           if (item.merchandiseId === cleanUpByTonMerchandiseId) {
-            cartCheckboxWrap.style.display = "flex";
+            cartCheckboxWrap.style.display = 'flex';
             return true;
           }
           if (item.merchandiseId === personalAnnualFootprintMerchandiseId) {
             quantitySum += item.quantity;
             if (quantitySum > 4) {
-              cartCheckboxWrap.style.display = "flex";
+              cartCheckboxWrap.style.display = 'flex';
               return true;
             }
           }
         }
 
-        cartCheckboxWrap.style.display = "none";
+        cartCheckboxWrap.style.display = 'none';
         return false;
       },
     };
   }
 
   function formatNumber(value: number) {
-    return new Intl.NumberFormat("en-US").format(value);
+    return new Intl.NumberFormat('en-US').format(value);
   }
 
   function handleCheckboxLogic(config: {
@@ -511,26 +461,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     const field = document.querySelector(config.field);
 
     if (!checkbox || !field) {
-      console.error(
-        `Missing checkbox (${config.checkbox}) or field (${config.field})`
-      );
+      console.error(`Missing checkbox (${config.checkbox}) or field (${config.field})`);
       return;
     }
 
     const updateFieldState = () => {
       const isChecked = checkbox.checked;
-      // console.log(`Checkbox (${config.checkbox}) changed: ${isChecked}`);
-      field.classList.toggle("visible", isChecked);
+      field.classList.toggle('visible', isChecked);
 
-      config.requiredInputs.forEach((inputSelector) => {
+      config.requiredInputs.forEach(inputSelector => {
         const input = document.querySelector(inputSelector);
         if (input) {
           if (isChecked) {
-            input.setAttribute("required", "required");
-            // console.log(`Set required on ${inputSelector}`);
+            input.setAttribute('required', 'required');
           } else {
-            input.removeAttribute("required");
-            // console.log(`Removed required from ${inputSelector}`);
+            input.removeAttribute('required');
           }
         } else {
           console.warn(`Required input (${inputSelector}) not found`);
@@ -539,7 +484,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     // Attach event listener to the checkbox
-    checkbox.addEventListener("change", updateFieldState);
+    checkbox.addEventListener('change', updateFieldState);
 
     // Initialize field state on page load
     updateFieldState();
@@ -597,8 +542,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function initializeQuantityLogic() {
     // Set default value and initialize calculation
-    quantityInputCleanByTon.value = "1";
-    quantityInputPersonalAnnualFootprint.value = "1";
+    quantityInputCleanByTon.value = '1';
+    quantityInputPersonalAnnualFootprint.value = '1';
     handleQuantityChange(
       quantityInputCleanByTon,
       priceDisplayCleanByTon,
@@ -621,7 +566,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
 
     // Attach listeners for input changes
-    quantityInputCleanByTon.addEventListener("input", () => {
+    quantityInputCleanByTon.addEventListener('input', () => {
       handleQuantityChange(
         quantityInputCleanByTon,
         priceDisplayCleanByTon,
@@ -633,7 +578,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         cleanByTonBaseBottlesValue
       );
     });
-    quantityInputCleanByTon.addEventListener("change", () => {
+    quantityInputCleanByTon.addEventListener('change', () => {
       handleQuantityChange(
         quantityInputCleanByTon,
         priceDisplayCleanByTon,
@@ -645,7 +590,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         cleanByTonBaseBottlesValue
       );
     });
-    quantityInputPersonalAnnualFootprint.addEventListener("input", () => {
+    quantityInputPersonalAnnualFootprint.addEventListener('input', () => {
       handleQuantityChange(
         quantityInputPersonalAnnualFootprint,
         priceDisplayPersonalAnnualFootprint,
@@ -657,7 +602,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         personalAnnualFootprintBaseBottlesValue
       );
     });
-    quantityInputPersonalAnnualFootprint.addEventListener("change", () => {
+    quantityInputPersonalAnnualFootprint.addEventListener('change', () => {
       handleQuantityChange(
         quantityInputPersonalAnnualFootprint,
         priceDisplayPersonalAnnualFootprint,
@@ -671,21 +616,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     // Attach listeners for Finsweet buttons
-    const incrementButton = document.querySelector(
-      '[clean-up-input="increment"]'
-    );
-    const decrementButton = document.querySelector(
-      '[clean-up-input="decrement"]'
-    );
-    const incrementButton2 = document.querySelector(
-      '[personal-annual-input="increment"]'
-    );
-    const decrementButton2 = document.querySelector(
-      '[personal-annual-input="decrement"]'
-    );
+    const incrementButton = document.querySelector('[clean-up-input="increment"]');
+    const decrementButton = document.querySelector('[clean-up-input="decrement"]');
+    const incrementButton2 = document.querySelector('[personal-annual-input="increment"]');
+    const decrementButton2 = document.querySelector('[personal-annual-input="decrement"]');
 
     if (incrementButton && decrementButton) {
-      incrementButton.addEventListener("click", () =>
+      incrementButton.addEventListener('click', () =>
         setTimeout(() => {
           handleQuantityChange(
             quantityInputCleanByTon,
@@ -699,7 +636,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           );
         }, 0)
       );
-      decrementButton.addEventListener("click", () =>
+      decrementButton.addEventListener('click', () =>
         setTimeout(() => {
           handleQuantityChange(
             quantityInputCleanByTon,
@@ -714,10 +651,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 0)
       );
     } else {
-      console.warn("Finsweet input counter buttons not found");
+      console.warn('Finsweet input counter buttons not found');
     }
     if (incrementButton2 && decrementButton2) {
-      incrementButton2.addEventListener("click", () =>
+      incrementButton2.addEventListener('click', () =>
         setTimeout(() => {
           handleQuantityChange(
             quantityInputPersonalAnnualFootprint,
@@ -731,7 +668,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           );
         }, 0)
       );
-      decrementButton2.addEventListener("click", () =>
+      decrementButton2.addEventListener('click', () =>
         setTimeout(() => {
           handleQuantityChange(
             quantityInputPersonalAnnualFootprint,
@@ -746,193 +683,156 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 0)
       );
     } else {
-      console.warn("Finsweet input counter buttons not found");
+      console.warn('Finsweet input counter buttons not found');
     }
   }
-  async function createCartAndAddItems({
-    storefrontClient,
-    attributes = [],
-    lineItems = [],
-  }: {
-    storefrontClient: StorefrontApiClient;
-    attributes: { key: string; value: string }[];
-    lineItems: {
-      merchandiseId: string;
-      attributes?: { key: string; value: string }[];
-      quantity: number;
-    }[];
-  }) {
-    try {
-      // console.log({ attributes, lineItems });
-      const createCartMutation = `#graphql
-        mutation cartCreate($input: CartInput!) {
-          cartCreate(input: $input) {
-            cart {
-              id
-              createdAt
-              updatedAt
-              attributes {
-                key
-                value
-              }
-              lines(first: 10) {
-                edges {
-                  node {
-                    id
-                    merchandise {
-                      ... on ProductVariant {
-                        id
-                        title
-                      }
-                    }
-                    quantity
-                  }
-                }
-              }
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
 
-      const createCartResponse =
-        await storefrontClient.request<CreateCartResponse>(createCartMutation, {
-          variables: {
-            input: {
-              attributes,
-              lines: lineItems,
-            },
-          },
+  // -------------------------------------------------------
+  const attachCustomFormValidation = (
+    form: HTMLFormElement | null,
+    fieldsWrapperClassCombo: string
+  ) => {
+    if (!form) {
+      console.warn('Form not found. Check your selector.');
+      return;
+    }
+
+    const nameInput = form.querySelector<HTMLInputElement>('[data-name="RecipientName"]');
+    const emailInput = form.querySelector<HTMLInputElement>('[data-name="RecipientEmail"]');
+    const giftMessageInput = form.querySelector<HTMLTextAreaElement>(
+      '[data-name="RecipientMessage"]'
+    );
+
+    if (!nameInput || !emailInput || !giftMessageInput) {
+      console.warn(
+        'Could not find one or more input fields (RecipientName, RecipientEmail, RecipientMessage). Check your selectors and ensure they are present in the form.'
+      );
+      return;
+    }
+
+    const createErrorText = () => {
+      const errorText = document.createElement('div');
+      errorText.style.color = ERROR_COLOR;
+      errorText.style.fontSize = '12px';
+      errorText.style.marginTop = '4px';
+      return errorText;
+    };
+
+    const nameInputErrorText = createErrorText();
+    const emailInputErrorText = createErrorText();
+    const messageInputErrorText = createErrorText();
+
+    nameInput.parentElement?.appendChild(nameInputErrorText);
+    emailInput.parentElement?.appendChild(emailInputErrorText);
+    giftMessageInput.parentElement?.appendChild(messageInputErrorText);
+
+    const touchedFields = new Set<string>();
+
+    const showFieldError = ({
+      message,
+      input,
+      errorTextElement,
+      maxHeightRem,
+      inputsContainer,
+    }: {
+      message: string;
+      input: HTMLElement;
+      errorTextElement: HTMLElement;
+      maxHeightRem: number;
+      inputsContainer: HTMLElement;
+    }) => {
+      if (touchedFields.has(input.getAttribute('name') || '')) {
+        input.style.borderColor = ERROR_COLOR;
+        errorTextElement.textContent = message;
+        errorTextElement.style.display = 'block';
+        if (inputsContainer) inputsContainer.style.maxHeight = maxHeightRem + 'rem';
+      }
+    };
+
+    const validateForm = () => {
+      const inputsContainer = document.querySelector(fieldsWrapperClassCombo) as HTMLElement | null;
+
+      if (!inputsContainer) {
+        console.warn('Fields container not found. Check your selector.');
+        return;
+      }
+
+      const nameValue = nameInput.value;
+      const emailValue = emailInput.value;
+      const messageValue = giftMessageInput.value;
+
+      let fieldsHeightRem = 20;
+
+      nameInput.style.borderColor = '';
+      nameInputErrorText.style.display = 'none';
+      emailInput.style.borderColor = '';
+      emailInputErrorText.style.display = 'none';
+      giftMessageInput.style.borderColor = '';
+      messageInputErrorText.style.display = 'none';
+
+      inputsContainer.style.maxHeight = `${fieldsHeightRem}rem`;
+
+      const giftNameError = getGiftNameValidationError(nameValue);
+      if (giftNameError && touchedFields.has(nameInput.getAttribute('name') || '')) {
+        fieldsHeightRem += 3;
+        showFieldError({
+          errorTextElement: nameInputErrorText,
+          input: nameInput,
+          message: giftNameError,
+          maxHeightRem: fieldsHeightRem,
+          inputsContainer,
         });
-
-      // console.log({ createCartResponse });
-
-      const cart = createCartResponse.data?.cartCreate.cart;
-      if (!cart) {
-        throw new Error("Error creating cart");
       }
 
-      // console.log("Cart created:", cart);
-
-      return cart;
-    } catch (error) {
-      console.error("Error in createCartAndAddItems:", error);
-      throw error;
-    }
-  }
-  async function fetchProductWithVariants({
-    storefrontClient,
-    productId,
-  }: {
-    storefrontClient: StorefrontApiClient;
-    productId: number;
-  }) {
-    try {
-      const productQuery = `#graphql
-        query ProductQuery($id: ID!) {
-          product(id: $id) {
-            id
-            title
-            handle
-            variants(first: 50) {
-              edges {
-                node {
-                  id
-                  title
-                  price {
-                    amount
-                    currencyCode
-                  }
-                  image {
-                    url
-                    altText
-                    width
-                    height
-                  }
-                }
-              }
-            }
-          }
-        }
-      `;
-
-      const response = await storefrontClient.request<ProductResponse>(
-        productQuery,
-        {
-          variables: {
-            id: `gid://shopify/Product/${productId}`,
-          },
-        }
-      );
-      // console.log({ response });
-
-      if (!response.data) {
-        console.error("Product not found for id:", productId);
-        throw response.errors;
-      }
-      // console.log("Fetched product with variants:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching product:", error);
-      throw error;
-    }
-  }
-  async function getCartWebUrl({
-    storefrontClient,
-    cartId,
-  }: {
-    storefrontClient: StorefrontApiClient;
-    cartId: string;
-  }) {
-    try {
-      const cartQuery = `#graphql
-        query cart($cartId: ID!) {
-          cart(id: $cartId) {
-            id
-            checkoutUrl
-            lines(first: 10) {
-              edges {
-                node {
-                  id
-                  merchandise {
-                    ... on ProductVariant {
-                      id
-                      title
-                    }
-                  }
-                  quantity
-                }
-              }
-            }
-          }
-        }
-      `;
-
-      const variables = {
-        cartId,
-      };
-
-      const { data, errors } = await storefrontClient.request<GetCartResponse>(
-        cartQuery,
-        {
-          variables,
-        }
-      );
-      // console.log({ data });
-
-      if (!data) {
-        console.error("Errors fetching cart:", errors);
-        throw errors;
+      const giftEmailError = getEmailValidationError(emailValue);
+      if (giftEmailError && touchedFields.has(emailInput.getAttribute('name') || '')) {
+        fieldsHeightRem += 3;
+        showFieldError({
+          errorTextElement: emailInputErrorText,
+          input: emailInput,
+          message: giftEmailError,
+          maxHeightRem: fieldsHeightRem,
+          inputsContainer,
+        });
       }
 
-      // console.log("Cart Web URL:", data.cart.checkoutUrl);
-      return { checkoutUrl: data.cart.checkoutUrl };
-    } catch (error) {
-      console.error("Error fetching cart details:", error);
-      throw error;
-    }
-  }
+      const giftMessageError = getGiftMessageValidationError(messageValue);
+      if (giftMessageError && touchedFields.has(giftMessageInput.getAttribute('name') || '')) {
+        fieldsHeightRem += 3;
+        showFieldError({
+          errorTextElement: messageInputErrorText,
+          input: giftMessageInput,
+          message: giftMessageError,
+          maxHeightRem: fieldsHeightRem,
+          inputsContainer,
+        });
+      }
+    };
+
+    giftMessageInput.addEventListener('input', () => {
+      touchedFields.add(giftMessageInput.getAttribute('name') || '');
+      validateForm();
+    });
+    nameInput.addEventListener('input', () => {
+      touchedFields.add(nameInput.getAttribute('name') || '');
+      validateForm();
+    });
+    emailInput.addEventListener('input', () => {
+      touchedFields.add(emailInput.getAttribute('name') || '');
+      validateForm();
+    });
+  };
+
+  const personalAnnualFootprintForm = document.getElementById(
+    'wf-form-Purchase-Form-Personal-3'
+  ) as HTMLFormElement | null;
+  const cleanByTonForm = document.getElementById(
+    'purchase-form-50339670589756'
+  ) as HTMLFormElement | null;
+
+  attachCustomFormValidation(
+    personalAnnualFootprintForm,
+    '.form_main_field_wrap.is-gift-2.visible'
+  );
+  attachCustomFormValidation(cleanByTonForm, '.form_main_field_wrap.is-gift.visible');
 });
